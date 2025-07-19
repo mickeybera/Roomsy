@@ -10,8 +10,12 @@ const App = () => {
   const [joined, setJoined] = useState(false);
 
   useEffect(() => {
-    axios.get("https://roomsy-fzq9.vercel.app/api/rooms")
-      .then((res) => setRooms(res.data))
+    axios
+      .get("https://roomsy.onrender.com/api/rooms")
+      .then((res) => {
+        console.log("Rooms fetched:", res.data);
+        setRooms(res.data);
+      })
       .catch((err) => console.error("Error fetching rooms:", err));
   }, []);
 
@@ -27,7 +31,10 @@ const App = () => {
   return (
     <div className="container mt-4">
       {!joined ? (
-        <div className="card p-4 shadow-sm" style={{ maxWidth: "400px", margin: "auto" }}>
+        <div
+          className="card p-4 shadow-sm"
+          style={{ maxWidth: "400px", margin: "auto" }}
+        >
           <h2 className="text-center mb-4">Join Chat</h2>
           <input
             type="text"
@@ -42,9 +49,15 @@ const App = () => {
             onChange={(e) => setSelectedRoom(e.target.value)}
           >
             <option value="">Select Room</option>
-            {rooms.map((room) => (
-              <option key={room._id} value={room.name}>{room.name}</option>
-            ))}
+            {rooms.length > 0 ? (
+              rooms.map((room) => (
+                <option key={room._id} value={room.name}>
+                  {room.name}
+                </option>
+              ))
+            ) : (
+              <option disabled>Loading rooms...</option>
+            )}
           </select>
           <button className="btn btn-primary w-100" onClick={joinRoom}>
             Join

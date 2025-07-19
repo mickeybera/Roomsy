@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import socket from "../socket";
 import PrivateChatModal from "./PrivateChatModal";
 
@@ -10,11 +10,18 @@ const ChatRoom = ({ username, currentRoom }) => {
   const [privateChatUser, setPrivateChatUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
+  const chatEndRef = useRef(null);
+
+  // ✅ Auto-scroll to bottom when messages change
   useEffect(() => {
-    // ✅ Initial Join for default/current room
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
+  useEffect(() => {
     socket.emit("joinRoom", { username, room });
 
-    // ✅ Listeners
     socket.on("chatHistory", (history) => setMessages(history));
     socket.on("message", (msg) => setMessages((prev) => [...prev, msg]));
     socket.on("onlineUsers", (users) => setOnlineUsers(users));
@@ -24,7 +31,7 @@ const ChatRoom = ({ username, currentRoom }) => {
       socket.off("message");
       socket.off("onlineUsers");
     };
-  }, [room, username]); // ✅ Re-run when room changes
+  }, [room, username]);
 
   const sendMessage = () => {
     if (message.trim() !== "") {
@@ -35,8 +42,8 @@ const ChatRoom = ({ username, currentRoom }) => {
 
   const switchRoom = (newRoom) => {
     if (newRoom !== room) {
-      setRoom(newRoom); // ✅ Update local state
-      setMessages([]); // ✅ Clear old messages
+      setRoom(newRoom);
+      setMessages([]);
       socket.emit("switchRoom", { username, newRoom });
     }
   };
@@ -48,6 +55,7 @@ const ChatRoom = ({ username, currentRoom }) => {
 
   return (
     <div className="row mt-4">
+      {/* Sidebar */}
       <div className="col-md-3">
         <h4>Rooms</h4>
         <ul className="list-group">
@@ -78,23 +86,51 @@ const ChatRoom = ({ username, currentRoom }) => {
         </ul>
       </div>
 
+      {/* Chat Area */}
       <div className="col-md-9">
         <div className="card">
           <div className="card-header">Room: {room}</div>
           <div
             className="card-body"
-            style={{ height: "400px", overflowY: "auto" }}
+            style={{
+              height: "400px",
+              overflowY: "auto",
+              backgroundColor: "#f8f9fa",
+            }}
           >
             {messages.length > 0 ? (
-              messages.map((msg, index) => (
-                <div key={index}>
-                  <strong>{msg.username}:</strong> {msg.text}
-                </div>
-              ))
+              messages.map((msg, index) => {
+                const isOwnMessage = msg.username === username;
+                return (
+                  <div
+                    key={index}
+                    className={`d-flex mb-2 ${
+                      isOwnMessage ? "justify-content-end" : "justify-content-start"
+                    }`}
+                  >
+                    <div
+                      style={{
+                        maxWidth: "70%",
+                        padding: "10px 15px",
+                        borderRadius: "15px",
+                        backgroundColor: isOwnMessage ? "#0d6efd" : "#e9ecef",
+                        color: isOwnMessage ? "#fff" : "#000",
+                        boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      <strong>{isOwnMessage ? "You" : msg.username}</strong>
+                      <div>{msg.text}</div>
+                    </div>
+                  </div>
+                );
+              })
             ) : (
               <p className="text-muted">No messages yet...</p>
             )}
+            <div ref={chatEndRef} />
           </div>
+
+          {/* Message Input */}
           <div className="card-footer d-flex">
             <input
               type="text"
@@ -102,6 +138,7 @@ const ChatRoom = ({ username, currentRoom }) => {
               placeholder="Type a message"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
             />
             <button className="btn btn-primary" onClick={sendMessage}>
               Send
@@ -110,6 +147,7 @@ const ChatRoom = ({ username, currentRoom }) => {
         </div>
       </div>
 
+      {/* Private Chat Modal */}
       {showModal && (
         <PrivateChatModal
           show={showModal}
@@ -124,4 +162,3 @@ const ChatRoom = ({ username, currentRoom }) => {
 };
 
 export default ChatRoom;
-

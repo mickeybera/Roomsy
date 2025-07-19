@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 
 const PrivateChatModal = ({ show, onHide, receiver, socket, sender }) => {
   const [message, setMessage] = useState("");
   const [privateMessages, setPrivateMessages] = useState([]);
+  const chatEndRef = useRef(null);
 
   useEffect(() => {
     if (show && receiver) {
@@ -24,6 +25,12 @@ const PrivateChatModal = ({ show, onHide, receiver, socket, sender }) => {
     }
   }, [show, receiver, socket, sender]);
 
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [privateMessages]);
+
   const sendPrivateMessage = () => {
     if (message.trim() !== "") {
       socket.emit("privateMessage", {
@@ -36,23 +43,55 @@ const PrivateChatModal = ({ show, onHide, receiver, socket, sender }) => {
   };
 
   return (
-    <Modal show={show} onHide={onHide} centered>
+    <Modal show={show} onHide={onHide} centered size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>Chat with {receiver?.username}</Modal.Title>
+        <Modal.Title>Private Chat with {receiver?.username}</Modal.Title>
       </Modal.Header>
-      <Modal.Body style={{ maxHeight: "300px", overflowY: "auto" }}>
-        {privateMessages.map((msg, index) => (
-          <div key={index}>
-            <strong>{msg.sender}:</strong> {msg.text}
-          </div>
-        ))}
+      <Modal.Body
+        style={{
+          maxHeight: "400px",
+          overflowY: "auto",
+          backgroundColor: "#f0f2f5",
+          padding: "15px",
+          borderRadius: "8px",
+        }}
+      >
+        {privateMessages.map((msg, index) => {
+          const isOwnMessage = msg.sender === sender;
+          return (
+            <div
+              key={index}
+              className={`d-flex mb-2 ${
+                isOwnMessage ? "justify-content-end" : "justify-content-start"
+              }`}
+            >
+              <div
+                style={{
+                  maxWidth: "70%",
+                  padding: "10px 15px",
+                  borderRadius: "15px",
+                  backgroundColor: isOwnMessage ? "#0d6efd" : "#e9ecef",
+                  color: isOwnMessage ? "#fff" : "#000",
+                  fontSize: "14px",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                }}
+              >
+                <strong>{isOwnMessage ? "You" : msg.sender}</strong>
+                <div>{msg.text}</div>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={chatEndRef} />
       </Modal.Body>
-      <Modal.Footer>
+      <Modal.Footer className="d-flex">
         <Form.Control
           type="text"
           placeholder="Type a message"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
+          onKeyPress={(e) => e.key === "Enter" && sendPrivateMessage()}
+          style={{ marginRight: "10px" }}
         />
         <Button variant="primary" onClick={sendPrivateMessage}>
           Send

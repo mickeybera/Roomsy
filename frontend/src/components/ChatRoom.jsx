@@ -3,6 +3,7 @@ import socket from "../socket";
 import PrivateChatModal from "./PrivateChatModal";
 
 const ChatRoom = ({ username, currentRoom }) => {
+  const [room, setRoom] = useState(currentRoom);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [onlineUsers, setOnlineUsers] = useState([]);
@@ -10,6 +11,10 @@ const ChatRoom = ({ username, currentRoom }) => {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
+    // ✅ Initial Join for default/current room
+    socket.emit("joinRoom", { username, room });
+
+    // ✅ Listeners
     socket.on("chatHistory", (history) => setMessages(history));
     socket.on("message", (msg) => setMessages((prev) => [...prev, msg]));
     socket.on("onlineUsers", (users) => setOnlineUsers(users));
@@ -19,7 +24,7 @@ const ChatRoom = ({ username, currentRoom }) => {
       socket.off("message");
       socket.off("onlineUsers");
     };
-  }, []);
+  }, [room, username]); // ✅ Re-run when room changes
 
   const sendMessage = () => {
     if (message.trim() !== "") {
@@ -28,9 +33,11 @@ const ChatRoom = ({ username, currentRoom }) => {
     }
   };
 
-  const switchRoom = (room) => {
-    if (room !== currentRoom) {
-      socket.emit("switchRoom", { username, newRoom: room });
+  const switchRoom = (newRoom) => {
+    if (newRoom !== room) {
+      setRoom(newRoom); // ✅ Update local state
+      setMessages([]); // ✅ Clear old messages
+      socket.emit("switchRoom", { username, newRoom });
     }
   };
 
@@ -44,17 +51,18 @@ const ChatRoom = ({ username, currentRoom }) => {
       <div className="col-md-3">
         <h4>Rooms</h4>
         <ul className="list-group">
-          {["General", "Technology", "Gaming", "Random", "Study"].map((room) => (
+          {["General", "Technology", "Gaming", "Random", "Study"].map((r) => (
             <li
-              key={room}
-              className={`list-group-item ${currentRoom === room ? "active" : ""}`}
-              onClick={() => switchRoom(room)}
+              key={r}
+              className={`list-group-item ${room === r ? "active" : ""}`}
+              onClick={() => switchRoom(r)}
               style={{ cursor: "pointer" }}
             >
-              {room}
+              {r}
             </li>
           ))}
         </ul>
+
         <h4 className="mt-4">Online Users</h4>
         <ul className="list-group">
           {onlineUsers.map((user) => (
@@ -72,16 +80,20 @@ const ChatRoom = ({ username, currentRoom }) => {
 
       <div className="col-md-9">
         <div className="card">
-          <div className="card-header">Room: {currentRoom}</div>
+          <div className="card-header">Room: {room}</div>
           <div
             className="card-body"
             style={{ height: "400px", overflowY: "auto" }}
           >
-            {messages.map((msg, index) => (
-              <div key={index}>
-                <strong>{msg.username}:</strong> {msg.text}
-              </div>
-            ))}
+            {messages.length > 0 ? (
+              messages.map((msg, index) => (
+                <div key={index}>
+                  <strong>{msg.username}:</strong> {msg.text}
+                </div>
+              ))
+            ) : (
+              <p className="text-muted">No messages yet...</p>
+            )}
           </div>
           <div className="card-footer d-flex">
             <input
@@ -112,3 +124,4 @@ const ChatRoom = ({ username, currentRoom }) => {
 };
 
 export default ChatRoom;
+

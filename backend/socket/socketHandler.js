@@ -27,16 +27,22 @@ const socketHandler = (io) => {
       const user = users[socket.id];
       if (!user) return;
 
-      socket.leave(user.room);
+      const oldRoom = user.room;
+
+      // Leave old room & update online users
+      socket.leave(oldRoom);
       user.room = newRoom;
       socket.join(newRoom);
 
-      console.log(`🔄 ${username} switched to ${newRoom}`);
+      console.log(`🔄 ${username} switched from ${oldRoom} to ${newRoom}`);
 
+      // ✅ Update online users in both rooms
+      updateOnlineUsers(io, users, oldRoom);
+      updateOnlineUsers(io, users, newRoom);
+
+      // Send previous messages for new room
       const history = await Message.find({ room: newRoom }).sort({ timestamp: 1 });
       socket.emit("chatHistory", history);
-
-      updateOnlineUsers(io, users, newRoom);
     });
 
     // ✅ Group Chat Message

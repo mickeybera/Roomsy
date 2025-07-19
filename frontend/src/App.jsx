@@ -10,8 +10,9 @@ const App = () => {
   const [joined, setJoined] = useState(false);
 
   useEffect(() => {
+    // ✅ Fetch rooms from your Render backend
     axios
-      .get("https://roomsy.onrender.com/api/rooms")
+      .get("https://roomsy.onrender.com/api/rooms") // ✅ Correct endpoint
       .then((res) => {
         console.log("Rooms fetched:", res.data);
         setRooms(res.data);
@@ -31,10 +32,7 @@ const App = () => {
   return (
     <div className="container mt-4">
       {!joined ? (
-        <div
-          className="card p-4 shadow-sm"
-          style={{ maxWidth: "400px", margin: "auto" }}
-        >
+        <div className="card p-4 shadow-sm" style={{ maxWidth: "400px", margin: "auto" }}>
           <h2 className="text-center mb-4">Join Chat</h2>
           <input
             type="text"

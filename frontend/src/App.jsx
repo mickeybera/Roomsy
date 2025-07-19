@@ -28,12 +28,6 @@ const App = () => {
     }
   };
 
-  const switchRoom = (newRoom) => {
-    socket.emit("leaveRoom", { room: selectedRoom });
-    socket.emit("joinRoom", { username, room: newRoom });
-    setSelectedRoom(newRoom);
-  };
-
   return (
     <div className="container mt-4">
       {!joined ? (
@@ -70,12 +64,7 @@ const App = () => {
           </button>
         </div>
       ) : (
-        <ChatRoom
-          username={username}
-          currentRoom={selectedRoom}
-          rooms={rooms}
-          switchRoom={switchRoom}
-        />
+        <ChatRoom username={username} currentRoom={selectedRoom} rooms={rooms} />
       )}
     </div>
   );

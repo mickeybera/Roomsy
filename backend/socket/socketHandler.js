@@ -1,45 +1,62 @@
 import Message from "../models/Message.js";
 import PrivateMessage from "../models/PrivateMessage.js";
 
-const users = {}; // { socketId: { username, room } }
-
 const socketHandler = (io) => {
+  const users = {}; // { socketId: { username, room } }
+
   io.on("connection", (socket) => {
-    console.log("✅ New connection:", socket.id);
+    console.log("⚡ New connection:", socket.id);
 
     // ✅ Join Room
     socket.on("joinRoom", async ({ username, room }) => {
       if (!username || !room) return;
 
-      // If user was in a previous room, leave it
+      // Leave previous room if exists
       if (users[socket.id]?.room) {
         socket.leave(users[socket.id].room);
       }
 
+      // Update user data
       users[socket.id] = { username, room };
       socket.join(room);
-      console.log(`✅ ${username} joined room: ${room}`);
+      console.log(`✅ ${username} joined ${room}`);
 
-      // Send chat history for the room
+      // Fetch room chat history
       const history = await Message.find({ room }).sort({ timestamp: 1 });
       socket.emit("chatHistory", history);
 
-      updateOnlineUsers(io, room);
+      updateOnlineUsers(io, users, room);
     });
 
-    // ✅ Group Chat Message
+    // ✅ Switch Room
+    socket.on("switchRoom", async ({ newRoom }) => {
+      const user = users[socket.id];
+      if (!user) return;
+
+      socket.leave(user.room);
+      user.room = newRoom;
+      socket.join(newRoom);
+
+      // Fetch new room chat history
+      const history = await Message.find({ room: newRoom }).sort({ timestamp: 1 });
+      socket.emit("chatHistory", history);
+
+      updateOnlineUsers(io, users, newRoom);
+    });
+
+    // ✅ Group Message
     socket.on("chatMessage", async (text) => {
       const user = users[socket.id];
       if (!user) return;
       const { username, room } = user;
 
-      const newMessage = new Message({ username, room, text });
-      await newMessage.save();
+      const newMsg = new Message({ username, room, text });
+      await newMsg.save();
 
-      io.to(room).emit("message", newMessage);
+      io.to(room).emit("message", newMsg);
     });
 
-    // ✅ Start Private Chat (Send History)
+    // ✅ Private Chat Request
     socket.on("startPrivateChat", async ({ sender, receiverSocketId }) => {
       const receiver = users[receiverSocketId];
       if (!receiver) return;
@@ -47,8 +64,8 @@ const socketHandler = (io) => {
       const history = await PrivateMessage.find({
         $or: [
           { sender, receiver: receiver.username },
-          { sender: receiver.username, receiver: sender },
-        ],
+          { sender: receiver.username, receiver: sender }
+        ]
       }).sort({ timestamp: 1 });
 
       socket.emit("privateChatHistory", { receiver: receiver.username, history });
@@ -62,22 +79,12 @@ const socketHandler = (io) => {
       const newPrivateMsg = new PrivateMessage({
         sender,
         receiver: receiver.username,
-        text,
+        text
       });
       await newPrivateMsg.save();
 
-      // Send to both users
       socket.to(receiverSocketId).emit("privateMessage", newPrivateMsg);
       socket.emit("privateMessage", newPrivateMsg);
-    });
-
-    // ✅ Leave Room
-    socket.on("leaveRoom", ({ room }) => {
-      socket.leave(room);
-      if (users[socket.id]) {
-        users[socket.id].room = null;
-      }
-      updateOnlineUsers(io, room);
     });
 
     // ✅ Disconnect
@@ -86,19 +93,19 @@ const socketHandler = (io) => {
       if (user) {
         const { room } = user;
         delete users[socket.id];
-        updateOnlineUsers(io, room);
+        updateOnlineUsers(io, users, room);
       }
       console.log(`❌ Disconnected: ${socket.id}`);
     });
   });
 };
 
-const updateOnlineUsers = (io, room) => {
+const updateOnlineUsers = (io, users, room) => {
   const onlineUsers = Object.entries(users)
     .filter(([_, user]) => user.room === room)
     .map(([id, user]) => ({
       socketId: id,
-      username: user.username,
+      username: user.username
     }));
   io.to(room).emit("onlineUsers", onlineUsers);
 };

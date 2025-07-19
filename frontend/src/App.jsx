@@ -10,7 +10,7 @@ const App = () => {
   const [joined, setJoined] = useState(false);
 
   useEffect(() => {
-    axios.get("http://localhost:5001/api/rooms")
+    axios.get("https://roomsy-fzq9.vercel.app/api/rooms")
       .then((res) => setRooms(res.data))
       .catch((err) => console.error("Error fetching rooms:", err));
   }, []);

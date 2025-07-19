@@ -1,3 +1,9 @@
 import { io } from "socket.io-client";
-const socket = io("http://localhost:5001"); // Change URL after deployment
+
+const socket = io("https://roomsy-fzq9.vercel.app", {
+  transports: ["websocket"], // ✅ Important for Vercel deployment
+  withCredentials: true,
+});
+
 export default socket;
+

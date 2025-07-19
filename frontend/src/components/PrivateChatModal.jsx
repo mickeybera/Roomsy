@@ -45,7 +45,7 @@ const PrivateChatModal = ({ show, onHide, receiver, socket, sender }) => {
           <div
             key={index}
             style={{
-              background: msg.sender === sender ? "#00ff1eff" : "#f1f1f1",
+              background: msg.sender === sender ? "#709796ff" : "#f1f1f1",
               color: msg.sender === sender ? "#fff" : "#000",
               padding: "8px",
               borderRadius: "8px",

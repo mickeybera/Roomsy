@@ -1,35 +1,33 @@
 import Message from "../models/Message.js";
 import PrivateMessage from "../models/PrivateMessage.js";
 
-const socketHandler = (io) => {
-  const users = {}; // { socketId: { username, room } }
+const users = {}; // { socketId: { username, room } }
 
+const socketHandler = (io) => {
   io.on("connection", (socket) => {
-    console.log("⚡ New user connected:", socket.id);
+    console.log("✅ New connection:", socket.id);
 
     // ✅ Join Room
     socket.on("joinRoom", async ({ username, room }) => {
       if (!username || !room) return;
 
-      // If already in a room, leave the previous one
+      // If user was in a previous room, leave it
       if (users[socket.id]?.room) {
         socket.leave(users[socket.id].room);
-        updateOnlineUsers(io, users, users[socket.id].room);
       }
 
       users[socket.id] = { username, room };
       socket.join(room);
+      console.log(`✅ ${username} joined room: ${room}`);
 
-      console.log(`✅ ${username} joined ${room}`);
-
-      // Fetch chat history for the room
+      // Send chat history for the room
       const history = await Message.find({ room }).sort({ timestamp: 1 });
       socket.emit("chatHistory", history);
 
-      updateOnlineUsers(io, users, room);
+      updateOnlineUsers(io, room);
     });
 
-    // ✅ Send Group Message
+    // ✅ Group Chat Message
     socket.on("chatMessage", async (text) => {
       const user = users[socket.id];
       if (!user) return;
@@ -41,7 +39,7 @@ const socketHandler = (io) => {
       io.to(room).emit("message", newMessage);
     });
 
-    // ✅ Start Private Chat - Fetch history
+    // ✅ Start Private Chat (Send History)
     socket.on("startPrivateChat", async ({ sender, receiverSocketId }) => {
       const receiver = users[receiverSocketId];
       if (!receiver) return;
@@ -53,11 +51,7 @@ const socketHandler = (io) => {
         ],
       }).sort({ timestamp: 1 });
 
-      socket.emit("privateChatHistory", {
-        receiver: receiver.username,
-        receiverSocketId,
-        history,
-      });
+      socket.emit("privateChatHistory", { receiver: receiver.username, history });
     });
 
     // ✅ Private Message
@@ -72,6 +66,7 @@ const socketHandler = (io) => {
       });
       await newPrivateMsg.save();
 
+      // Send to both users
       socket.to(receiverSocketId).emit("privateMessage", newPrivateMsg);
       socket.emit("privateMessage", newPrivateMsg);
     });
@@ -79,8 +74,10 @@ const socketHandler = (io) => {
     // ✅ Leave Room
     socket.on("leaveRoom", ({ room }) => {
       socket.leave(room);
-      delete users[socket.id];
-      updateOnlineUsers(io, users, room);
+      if (users[socket.id]) {
+        users[socket.id].room = null;
+      }
+      updateOnlineUsers(io, room);
     });
 
     // ✅ Disconnect
@@ -89,22 +86,20 @@ const socketHandler = (io) => {
       if (user) {
         const { room } = user;
         delete users[socket.id];
-        updateOnlineUsers(io, users, room);
+        updateOnlineUsers(io, room);
       }
-      console.log(`❌ User disconnected: ${socket.id}`);
+      console.log(`❌ Disconnected: ${socket.id}`);
     });
   });
 };
 
-// Helper: Update Online Users for a Room
-const updateOnlineUsers = (io, users, room) => {
+const updateOnlineUsers = (io, room) => {
   const onlineUsers = Object.entries(users)
     .filter(([_, user]) => user.room === room)
     .map(([id, user]) => ({
       socketId: id,
       username: user.username,
     }));
-
   io.to(room).emit("onlineUsers", onlineUsers);
 };
 

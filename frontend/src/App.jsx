@@ -11,11 +11,8 @@ const App = () => {
 
   useEffect(() => {
     axios
-      .get("https://roomsy.onrender.com/api/rooms")
-      .then((res) => {
-        console.log("Rooms fetched:", res.data);
-        setRooms(res.data);
-      })
+      .get("https://roomsy.onrender.com/api/rooms") // ✅ Change for deployment
+      .then((res) => setRooms(res.data))
       .catch((err) => console.error("Error fetching rooms:", err));
   }, []);
 
@@ -64,7 +61,7 @@ const App = () => {
           </button>
         </div>
       ) : (
-        <ChatRoom username={username} currentRoom={selectedRoom} rooms={rooms} />
+        <ChatRoom username={username} currentRoom={selectedRoom} />
       )}
     </div>
   );

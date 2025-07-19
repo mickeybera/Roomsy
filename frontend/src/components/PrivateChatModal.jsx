@@ -1,75 +1,64 @@
 import React, { useState, useEffect } from "react";
+import { Modal, Button, Form } from "react-bootstrap";
 
-const PrivateChatModal = ({ show, onHide, receiver, sender, socket }) => {
+const PrivateChatModal = ({ show, onHide, receiver, socket, sender }) => {
+  const [message, setMessage] = useState("");
   const [privateMessages, setPrivateMessages] = useState([]);
-  const [text, setText] = useState("");
 
   useEffect(() => {
-    if (receiver) {
+    if (show && receiver) {
       socket.emit("startPrivateChat", { sender, receiverSocketId: receiver.socketId });
+
+      socket.on("privateChatHistory", ({ history }) => {
+        setPrivateMessages(history);
+      });
+
+      socket.on("privateMessage", (msg) => {
+        setPrivateMessages((prev) => [...prev, msg]);
+      });
+
+      return () => {
+        socket.off("privateChatHistory");
+        socket.off("privateMessage");
+      };
     }
-
-    socket.on("privateChatHistory", ({ history }) => {
-      setPrivateMessages(history);
-    });
-
-    socket.on("privateMessage", (msg) => {
-      setPrivateMessages((prev) => [...prev, msg]);
-    });
-
-    return () => {
-      socket.off("privateChatHistory");
-      socket.off("privateMessage");
-    };
-  }, [receiver]);
+  }, [show, receiver, socket, sender]);
 
   const sendPrivateMessage = () => {
-    if (text.trim()) {
+    if (message.trim() !== "") {
       socket.emit("privateMessage", {
         sender,
         receiverSocketId: receiver.socketId,
-        text,
+        text: message,
       });
-      setText("");
+      setMessage("");
     }
   };
 
-  if (!show) return null;
-
   return (
-    <div
-      className="modal show d-block"
-      tabIndex="-1"
-      style={{ background: "rgba(0,0,0,0.5)" }}
-    >
-      <div className="modal-dialog">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Chat with {receiver.username}</h5>
-            <button className="btn-close" onClick={onHide}></button>
+    <Modal show={show} onHide={onHide} centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Chat with {receiver?.username}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body style={{ maxHeight: "300px", overflowY: "auto" }}>
+        {privateMessages.map((msg, index) => (
+          <div key={index}>
+            <strong>{msg.sender}:</strong> {msg.text}
           </div>
-          <div className="modal-body" style={{ height: "250px", overflowY: "auto" }}>
-            {privateMessages.map((msg, index) => (
-              <div key={index}>
-                <strong>{msg.sender}:</strong> {msg.text}
-              </div>
-            ))}
-          </div>
-          <div className="modal-footer">
-            <input
-              type="text"
-              className="form-control"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Type a private message"
-            />
-            <button className="btn btn-primary" onClick={sendPrivateMessage}>
-              Send
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+        ))}
+      </Modal.Body>
+      <Modal.Footer>
+        <Form.Control
+          type="text"
+          placeholder="Type a message"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        />
+        <Button variant="primary" onClick={sendPrivateMessage}>
+          Send
+        </Button>
+      </Modal.Footer>
+    </Modal>
   );
 };
 

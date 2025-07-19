@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import socket from "../socket";
 import PrivateChatModal from "./PrivateChatModal";
 
-const ChatRoom = ({ username, currentRoom, rooms }) => {
+const ChatRoom = ({ username, currentRoom }) => {
+  const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const [privateModalOpen, setPrivateModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [privateChatUser, setPrivateChatUser] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     socket.on("chatHistory", (history) => setMessages(history));
@@ -22,90 +22,89 @@ const ChatRoom = ({ username, currentRoom, rooms }) => {
   }, []);
 
   const sendMessage = () => {
-    if (text.trim()) {
-      socket.emit("chatMessage", text);
-      setText("");
+    if (message.trim() !== "") {
+      socket.emit("chatMessage", message);
+      setMessage("");
     }
   };
 
-  const switchRoom = (newRoom) => {
-    socket.emit("switchRoom", { newRoom });
-    setMessages([]);
+  const switchRoom = (room) => {
+    if (room !== currentRoom) {
+      socket.emit("switchRoom", { username, newRoom: room });
+    }
   };
 
-  const startPrivateChat = (user) => {
-    setSelectedUser(user);
-    setPrivateModalOpen(true);
+  const openPrivateChat = (user) => {
+    setPrivateChatUser(user);
+    setShowModal(true);
   };
 
   return (
-    <div className="container mt-3">
-      <div className="d-flex justify-content-between mb-3">
-        <h3>Room: {currentRoom}</h3>
-        <select
-          className="form-select w-auto"
-          onChange={(e) => switchRoom(e.target.value)}
-        >
-          {rooms.map((room) => (
-            <option key={room._id} value={room.name}>
-              {room.name}
-            </option>
+    <div className="row mt-4">
+      <div className="col-md-3">
+        <h4>Rooms</h4>
+        <ul className="list-group">
+          {["General", "Technology", "Gaming", "Random", "Study"].map((room) => (
+            <li
+              key={room}
+              className={`list-group-item ${currentRoom === room ? "active" : ""}`}
+              onClick={() => switchRoom(room)}
+              style={{ cursor: "pointer" }}
+            >
+              {room}
+            </li>
           ))}
-        </select>
+        </ul>
+        <h4 className="mt-4">Online Users</h4>
+        <ul className="list-group">
+          {onlineUsers.map((user) => (
+            <li
+              key={user.socketId}
+              className="list-group-item"
+              onClick={() => openPrivateChat(user)}
+              style={{ cursor: "pointer" }}
+            >
+              {user.username}
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <div className="row">
-        <div className="col-md-8">
-          <div className="border p-3 mb-3" style={{ height: "300px", overflowY: "auto" }}>
+      <div className="col-md-9">
+        <div className="card">
+          <div className="card-header">Room: {currentRoom}</div>
+          <div
+            className="card-body"
+            style={{ height: "400px", overflowY: "auto" }}
+          >
             {messages.map((msg, index) => (
               <div key={index}>
                 <strong>{msg.username}:</strong> {msg.text}
               </div>
             ))}
           </div>
-          <div className="input-group">
+          <div className="card-footer d-flex">
             <input
               type="text"
-              className="form-control"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
+              className="form-control me-2"
               placeholder="Type a message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
             />
             <button className="btn btn-primary" onClick={sendMessage}>
               Send
             </button>
           </div>
         </div>
-        <div className="col-md-4">
-          <h5>Online Users</h5>
-          <ul className="list-group">
-            {onlineUsers.map((user) => (
-              <li
-                key={user.socketId}
-                className="list-group-item d-flex justify-content-between"
-              >
-                {user.username}
-                {user.username !== username && (
-                  <button
-                    className="btn btn-sm btn-outline-primary"
-                    onClick={() => startPrivateChat(user)}
-                  >
-                    Chat
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
       </div>
 
-      {privateModalOpen && (
+      {showModal && (
         <PrivateChatModal
-          show={privateModalOpen}
-          onHide={() => setPrivateModalOpen(false)}
-          receiver={selectedUser}
-          sender={username}
+          show={showModal}
+          onHide={() => setShowModal(false)}
+          receiver={privateChatUser}
           socket={socket}
+          sender={username}
         />
       )}
     </div>

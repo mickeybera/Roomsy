@@ -11,17 +11,11 @@ const socketHandler = (io) => {
     socket.on("joinRoom", async ({ username, room }) => {
       if (!username || !room) return;
 
-      // Leave previous room if exists
-      if (users[socket.id]?.room) {
-        socket.leave(users[socket.id].room);
-      }
-
-      // Update user data
       users[socket.id] = { username, room };
       socket.join(room);
       console.log(`✅ ${username} joined ${room}`);
 
-      // Fetch room chat history
+      // Send previous messages for this room
       const history = await Message.find({ room }).sort({ timestamp: 1 });
       socket.emit("chatHistory", history);
 
@@ -29,7 +23,7 @@ const socketHandler = (io) => {
     });
 
     // ✅ Switch Room
-    socket.on("switchRoom", async ({ newRoom }) => {
+    socket.on("switchRoom", async ({ username, newRoom }) => {
       const user = users[socket.id];
       if (!user) return;
 
@@ -37,26 +31,26 @@ const socketHandler = (io) => {
       user.room = newRoom;
       socket.join(newRoom);
 
-      // Fetch new room chat history
+      console.log(`🔄 ${username} switched to ${newRoom}`);
+
       const history = await Message.find({ room: newRoom }).sort({ timestamp: 1 });
       socket.emit("chatHistory", history);
 
       updateOnlineUsers(io, users, newRoom);
     });
 
-    // ✅ Group Message
+    // ✅ Group Chat Message
     socket.on("chatMessage", async (text) => {
       const user = users[socket.id];
       if (!user) return;
-      const { username, room } = user;
 
-      const newMsg = new Message({ username, room, text });
-      await newMsg.save();
+      const newMessage = new Message({ username: user.username, room: user.room, text });
+      await newMessage.save();
 
-      io.to(room).emit("message", newMsg);
+      io.to(user.room).emit("message", newMessage);
     });
 
-    // ✅ Private Chat Request
+    // ✅ Private Chat Start
     socket.on("startPrivateChat", async ({ sender, receiverSocketId }) => {
       const receiver = users[receiverSocketId];
       if (!receiver) return;
@@ -64,8 +58,8 @@ const socketHandler = (io) => {
       const history = await PrivateMessage.find({
         $or: [
           { sender, receiver: receiver.username },
-          { sender: receiver.username, receiver: sender }
-        ]
+          { sender: receiver.username, receiver: sender },
+        ],
       }).sort({ timestamp: 1 });
 
       socket.emit("privateChatHistory", { receiver: receiver.username, history });
@@ -79,10 +73,11 @@ const socketHandler = (io) => {
       const newPrivateMsg = new PrivateMessage({
         sender,
         receiver: receiver.username,
-        text
+        text,
       });
       await newPrivateMsg.save();
 
+      // Send to receiver and sender
       socket.to(receiverSocketId).emit("privateMessage", newPrivateMsg);
       socket.emit("privateMessage", newPrivateMsg);
     });
@@ -100,13 +95,15 @@ const socketHandler = (io) => {
   });
 };
 
+// ✅ Helper function
 const updateOnlineUsers = (io, users, room) => {
   const onlineUsers = Object.entries(users)
-    .filter(([_, user]) => user.room === room)
+    .filter(([id, user]) => user.room === room)
     .map(([id, user]) => ({
       socketId: id,
-      username: user.username
+      username: user.username,
     }));
+
   io.to(room).emit("onlineUsers", onlineUsers);
 };
 

@@ -1,8 +1,9 @@
 import Message from "../models/Message.js";
 import PrivateMessage from "../models/PrivateMessage.js";
+import User from "../models/User.js"; // ✅ Import User model
 
 const socketHandler = (io) => {
-  const users = {}; // { socketId: { username, room } }
+  const users = {}; // In-memory users: { socketId: { username, room } }
 
   io.on("connection", (socket) => {
     console.log("⚡ New connection:", socket.id);
@@ -15,7 +16,14 @@ const socketHandler = (io) => {
       socket.join(room);
       console.log(`✅ ${username} joined ${room}`);
 
-      // Send previous messages for this room
+      // ✅ Save user in DB (upsert)
+      await User.findOneAndUpdate(
+        { username },
+        { username, socketId: socket.id, room },
+        { upsert: true, new: true }
+      );
+
+      // Send previous messages
       const history = await Message.find({ room }).sort({ timestamp: 1 });
       socket.emit("chatHistory", history);
 
@@ -29,18 +37,18 @@ const socketHandler = (io) => {
 
       const oldRoom = user.room;
 
-      // Leave old room & update online users
       socket.leave(oldRoom);
       user.room = newRoom;
       socket.join(newRoom);
 
       console.log(`🔄 ${username} switched from ${oldRoom} to ${newRoom}`);
 
-      // ✅ Update online users in both rooms
+      // ✅ Update user in DB
+      await User.findOneAndUpdate({ username }, { room: newRoom });
+
       updateOnlineUsers(io, users, oldRoom);
       updateOnlineUsers(io, users, newRoom);
 
-      // Send previous messages for new room
       const history = await Message.find({ room: newRoom }).sort({ timestamp: 1 });
       socket.emit("chatHistory", history);
     });
@@ -83,16 +91,19 @@ const socketHandler = (io) => {
       });
       await newPrivateMsg.save();
 
-      // Send to receiver and sender
       socket.to(receiverSocketId).emit("privateMessage", newPrivateMsg);
       socket.emit("privateMessage", newPrivateMsg);
     });
 
     // ✅ Disconnect
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       const user = users[socket.id];
       if (user) {
-        const { room } = user;
+        const { room, username } = user;
+
+        // ✅ Remove user from DB
+        await User.findOneAndDelete({ username });
+
         delete users[socket.id];
         updateOnlineUsers(io, users, room);
       }
@@ -101,7 +112,7 @@ const socketHandler = (io) => {
   });
 };
 
-// ✅ Helper function
+// ✅ Helper: Update online users
 const updateOnlineUsers = (io, users, room) => {
   const onlineUsers = Object.entries(users)
     .filter(([id, user]) => user.room === room)
@@ -114,3 +125,4 @@ const updateOnlineUsers = (io, users, room) => {
 };
 
 export default socketHandler;
+

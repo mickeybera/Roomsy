@@ -15,41 +15,29 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// ✅ CORS for Express
-const allowedOrigins = [
-  "http://localhost:5173",           // Local Dev
-  "https://your-vercel-app.vercel.app" // ✅ Replace with your Vercel frontend URL
-];
-
+// ✅ Allow your Vercel domain
 app.use(cors({
-  origin: allowedOrigins,
+  origin: ["https://roomsy-cyan.vercel.app"], // Your frontend domain
   methods: ["GET", "POST"],
   credentials: true
 }));
 
 app.use(express.json());
 
-// ✅ Socket.IO setup with CORS
+// ✅ Socket.IO with CORS
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  transports: ["websocket", "polling"] // ✅ Important for Render
+    origin: ["https://roomsy-cyan.vercel.app"], // Allow Vercel
+    methods: ["GET", "POST"]
+  }
 });
-
 socketHandler(io);
 
-// ✅ MongoDB + Default Rooms
+// ✅ MongoDB
 mongoose
-  .connect(process.env.MONGO_URI, {
-    
-  })
+  .connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("✅ MongoDB Connected");
-
-    // ✅ Insert default rooms if none exist
     const count = await Room.countDocuments();
     if (count === 0) {
       await Room.insertMany([
@@ -69,9 +57,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/rooms", roomRoutes);
 
-// ✅ Test Route
-app.get("/", (req, res) => res.send("✅ API Running"));
+app.get("/", (req, res) => res.send("API Running"));
 
-// ✅ Start Server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`✅ Server running on ${PORT}`));

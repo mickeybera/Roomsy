@@ -1,6 +1,6 @@
 import Message from "../models/Message.js";
 import PrivateMessage from "../models/PrivateMessage.js";
-import User from "../models/User.js"; // ✅ Import User model
+import User from "../models/User.js"; //Import User model
 
 const socketHandler = (io) => {
   const users = {}; // In-memory users: { socketId: { username, room } }
@@ -8,15 +8,15 @@ const socketHandler = (io) => {
   io.on("connection", (socket) => {
     console.log("⚡ New connection:", socket.id);
 
-    // ✅ Join Room
+    // Join Room
     socket.on("joinRoom", async ({ username, room }) => {
       if (!username || !room) return;
 
       users[socket.id] = { username, room };
       socket.join(room);
-      console.log(`✅ ${username} joined ${room}`);
+      console.log(`${username} joined ${room}`);
 
-      // ✅ Save user in DB (upsert)
+      // Save user in DB (upsert)
       await User.findOneAndUpdate(
         { username },
         { username, socketId: socket.id, room },
@@ -30,7 +30,7 @@ const socketHandler = (io) => {
       updateOnlineUsers(io, users, room);
     });
 
-    // ✅ Switch Room
+    // Switch Room
     socket.on("switchRoom", async ({ username, newRoom }) => {
       const user = users[socket.id];
       if (!user) return;
@@ -41,9 +41,9 @@ const socketHandler = (io) => {
       user.room = newRoom;
       socket.join(newRoom);
 
-      console.log(`🔄 ${username} switched from ${oldRoom} to ${newRoom}`);
+      console.log(`${username} switched from ${oldRoom} to ${newRoom}`);
 
-      // ✅ Update user in DB
+      // Update user in DB
       await User.findOneAndUpdate({ username }, { room: newRoom });
 
       updateOnlineUsers(io, users, oldRoom);
@@ -53,7 +53,7 @@ const socketHandler = (io) => {
       socket.emit("chatHistory", history);
     });
 
-    // ✅ Group Chat Message
+    // Group Chat Message
     socket.on("chatMessage", async (text) => {
       const user = users[socket.id];
       if (!user) return;
@@ -64,7 +64,7 @@ const socketHandler = (io) => {
       io.to(user.room).emit("message", newMessage);
     });
 
-    // ✅ Private Chat Start
+    // Private Chat Start
     socket.on("startPrivateChat", async ({ sender, receiverSocketId }) => {
       const receiver = users[receiverSocketId];
       if (!receiver) return;
@@ -79,7 +79,7 @@ const socketHandler = (io) => {
       socket.emit("privateChatHistory", { receiver: receiver.username, history });
     });
 
-    // ✅ Private Message
+    // Private Message
     socket.on("privateMessage", async ({ sender, receiverSocketId, text }) => {
       const receiver = users[receiverSocketId];
       if (!receiver) return;
@@ -95,13 +95,13 @@ const socketHandler = (io) => {
       socket.emit("privateMessage", newPrivateMsg);
     });
 
-    // ✅ Disconnect
+    // Disconnect
     socket.on("disconnect", async () => {
       const user = users[socket.id];
       if (user) {
         const { room, username } = user;
 
-        // ✅ Remove user from DB
+        // Remove user from DB
         await User.findOneAndDelete({ username });
 
         delete users[socket.id];
@@ -112,7 +112,7 @@ const socketHandler = (io) => {
   });
 };
 
-// ✅ Helper: Update online users
+//  Helper: Update online users
 const updateOnlineUsers = (io, users, room) => {
   const onlineUsers = Object.entries(users)
     .filter(([id, user]) => user.room === room)

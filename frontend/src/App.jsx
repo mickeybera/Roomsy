@@ -11,7 +11,7 @@ const App = () => {
 
   useEffect(() => {
     axios
-      .get("https://roomsy.onrender.com/api/rooms") // ✅ Change for deployment
+      .get("https://roomsy.onrender.com/api/rooms") // backend url after deployment
       .then((res) => setRooms(res.data))
       .catch((err) => console.error("Error fetching rooms:", err));
   }, []);

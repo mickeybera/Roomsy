@@ -70,7 +70,7 @@ const PrivateChatModal = ({ show, onHide, receiver, socket, sender }) => {
                   maxWidth: "70%",
                   padding: "10px 15px",
                   borderRadius: "15px",
-                  backgroundColor: isOwnMessage ? "#0d6efd" : "#e9ecef",
+                  backgroundColor: isOwnMessage ? "#141514ff" : "#e9ecef",
                   color: isOwnMessage ? "#fff" : "#000",
                   fontSize: "14px",
                   boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
